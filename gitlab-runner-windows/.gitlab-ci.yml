@@ -1,0 +1,31 @@
+stages:
+  - build
+  - deploy
+
+build_dev:
+  stage: build
+  only:
+    - develop
+  tags:
+    - srv_imgs
+  script:
+    - echo "build_dev..."
+    - docker rmi -f $DOCKER_HUB_USERNAME/node-api
+    - docker build -t $DOCKER_HUB_USERNAME/node-api .
+    - docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+    - docker push $DOCKER_HUB_USERNAME/node-api:latest
+
+deploy_dev:
+  stage: deploy
+  needs: ["build_dev"]
+  only:
+    - develop
+  tags:
+    - srv_apps
+  script:
+    - echo "deploy_dev..."
+    - docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+    - docker pull $DOCKER_HUB_USERNAME/node-api:latest
+    - pwsh -File docker-stop.ps1 -ContainerName "node_api"
+    - pwsh -File docker-rm.ps1 -ContainerName "node_api"
+    - docker run --name node_api -p 3000:3000 -d $DOCKER_HUB_USERNAME/node-api:latest
